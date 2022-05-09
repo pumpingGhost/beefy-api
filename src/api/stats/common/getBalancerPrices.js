@@ -11,7 +11,7 @@ const getBalancerPrices = async (web3, chainId, pools, tokenPrices) => {
   const { balances, totalSupplys } = await getPoolsData(web3, chainId, pools);
 
   for (let i = 0; i < pools.length; i++) {
-    let price = await getPoolPrice(pools[i], balances[i], totalSupplys[i], tokenPrices);
+    let price = await getPoolPrice(pools[i], balances[i], totalSupplys[i], tokenPrices, prices);
     prices = { ...prices, ...price };
   }
 
@@ -40,12 +40,12 @@ const getPoolsData = async (web3, chainId, pools) => {
   return { balances, totalSupplys };
 };
 
-const getPoolPrice = async (pool, balance, totalSupply, tokenPrices) => {
+const getPoolPrice = async (pool, balance, totalSupply, tokenPrices, lpPrices) => {
   let tokenPrice;
   let tokenBalInUsd = new BigNumber(0);
   let totalStakedinUsd = new BigNumber(0);
   for (let i = 0; i < pool.tokens.length; i++) {
-    tokenPrice = await getTokenPrice(tokenPrices, pool.tokens[i].oracleId);
+    tokenPrice = getTokenPrice(tokenPrices, pool.tokens[i].oracleId, lpPrices);
     tokenBalInUsd = new BigNumber(balance[i]).times(tokenPrice).dividedBy(pool.tokens[i].decimals);
     totalStakedinUsd = totalStakedinUsd.plus(tokenBalInUsd);
   }
@@ -53,12 +53,14 @@ const getPoolPrice = async (pool, balance, totalSupply, tokenPrices) => {
   return { [pool.name]: price };
 };
 
-const getTokenPrice = (tokenPrices, oracleId) => {
+const getTokenPrice = (tokenPrices, oracleId, lpPrices) => {
   if (!oracleId) return 1;
   let tokenPrice = 1;
   const tokenSymbol = oracleId;
   if (tokenPrices.hasOwnProperty(tokenSymbol)) {
     tokenPrice = tokenPrices[tokenSymbol];
+  } else if (lpPrices.hasOwnProperty(tokenSymbol)) {
+    tokenPrice = lpPrices[tokenSymbol];
   } else {
     console.error(`Unknown token '${tokenSymbol}'. Consider adding it to .json file`);
   }
